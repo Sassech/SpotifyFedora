@@ -1,0 +1,45 @@
+name: Check for New Spotify Version
+
+on:
+  schedule:
+    # Check daily at 12:00 UTC
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest Spotify version
+        id: spotify
+        run: |
+          SPOTIFY_REPO="http://repository.spotify.com/pool/non-free/s/spotify-client/"
+          LATEST_DEB=$(curl -sL $SPOTIFY_REPO | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
+          VERSION=$(echo $LATEST_DEB | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Latest Spotify version: $VERSION"
+
+      - name: Check if release exists
+        id: check
+        run: |
+          if gh release view "v${{ steps.spotify.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Release already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "New version detected!"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Trigger build workflow
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          gh workflow run build-release.yml
+          echo "Build workflow triggered for version ${{ steps.spotify.outputs.version }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

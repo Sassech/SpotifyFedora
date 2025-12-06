@@ -1,0 +1,88 @@
+name: Build and Release Spotify RPM
+
+on:
+  schedule:
+    # Run the first day of month at 00:00 UTC
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+    # Allow manual trigger
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Build Spotify RPM
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Get Spotify version
+        id: version
+        run: |
+          RPM_FILE=$(ls output/spotify-*.rpm | head -n 1)
+          VERSION=$(echo $RPM_FILE | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
+          echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create Release
+        if: steps.check_release.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Spotify ${{ steps.version.outputs.version }}
+          body: |
+            ## Spotify RPM for Fedora
+
+            Automated build of Spotify version `${{ steps.version.outputs.version }}`
+
+            ### Installation
+            ```bash
+            sudo dnf install ./${{ steps.version.outputs.rpm_name }}
+            ```
+
+            ### Included Fixes
+            - GPU sandbox disabled (may help with black screen issues)
+            - Seccomp filter sandbox disabled
+            - Clean cache flag for better compatibility
+
+            **Note**: These fixes are still being tested. Black screen issues at startup may still occur.
+
+            ---
+            Built with Podman in isolated container environment.
+          files: |
+            ${{ steps.version.outputs.rpm_file }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotify-rpm-${{ steps.version.outputs.version }}
+          path: output/*.rpm
+          retention-days: 30
