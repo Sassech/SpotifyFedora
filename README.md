@@ -13,14 +13,6 @@ A cleaner alternative to **lpf-spotify-client** that builds Spotify RPM packages
 
 Pre-built RPMs are automatically generated and available in [Releases](../../releases):
 
-```bash
-# Download the latest release
-wget https://github.com/Sassech/SpotifyFedora/releases/latest/download/spotify-*.rpm
-
-# Install
-sudo dnf install ./spotify-*.rpm
-```
-
 ### Build Locally
 
 ```bash
@@ -45,20 +37,6 @@ Custom launcher that attempts to prevent common Fedora issues:
 - Clean cache flag for better compatibility
 
 **Note**: These fixes are still being tested. Black screen issues at startup still occur.
-
-## CI/CD
-
-This repository uses GitHub Actions to automatically:
-
-- **Check for new versions**: Daily checks for new Spotify releases
-- **Auto-build**: Builds RPM monthly (1st of each month) or when new version detected
-- **Auto-release**: Creates GitHub release with the RPM attached
-- **Manual trigger**: Can be manually triggered via Actions tab
-
-Workflows:
-
-- `check-new-version.yml`: Daily check for new Spotify versions
-- `build-release.yml`: Monthly builds (1st of month) and publishes RPM to releases
 
 ## Troubleshooting
 

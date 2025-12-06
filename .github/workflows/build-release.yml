@@ -62,20 +62,10 @@ jobs:
 
             Automated build of Spotify version `${{ steps.version.outputs.version }}`
 
-            ### Installation
-            ```bash
-            sudo dnf install ./${{ steps.version.outputs.rpm_name }}
-            ```
-
-            ### Included Fixes
+            ### Included Fixes (still being tested)
             - GPU sandbox disabled (may help with black screen issues)
             - Seccomp filter sandbox disabled
             - Clean cache flag for better compatibility
-
-            **Note**: These fixes are still being tested. Black screen issues at startup may still occur.
-
-            ---
-            Built with Podman in isolated container environment.
           files: |
             ${{ steps.version.outputs.rpm_file }}
           draft: false
