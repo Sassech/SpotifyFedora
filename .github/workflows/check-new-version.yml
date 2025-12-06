@@ -6,6 +6,10 @@ on:
     - cron: "0 12 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -42,4 +46,4 @@ jobs:
           gh workflow run build-release.yml
           echo "Build workflow triggered for version ${{ steps.spotify.outputs.version }}"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
