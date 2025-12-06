@@ -24,7 +24,8 @@ RUN wget -q -O spotify-make.tar.gz https://github.com/leamas/spotify-make/tarbal
     rm spotify-make.tar.gz
 
 COPY build-spotify.sh /build/
+COPY create-spec.sh /build/
 
-RUN chmod +x /build/build-spotify.sh
+RUN chmod +x /build/build-spotify.sh /build/create-spec.sh
 
 CMD ["/build/build-spotify.sh"]

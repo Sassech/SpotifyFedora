@@ -138,40 +138,8 @@ MANPAGE
 # Adjust library permissions
 find "${INSTALL_DIR}/usr/share/spotify-client" -name '*.so*' -type f -exec chmod 755 {} \;
 
-# Create simplified spec file
-cat > ${BUILD_DIR}/SPECS/spotify-client.spec << EOF
-%global debug_package %{nil}
-%global __strip /bin/true
-
-Name:           spotify-client
-Version:        ${VERSION}
-Release:        1%{?dist}
-Summary:        Spotify desktop client
-License:        Proprietary
-URL:            https://www.spotify.com/
-
-Requires:       libatomic
-Requires:       libayatana-appindicator-gtk3
-
-%description
-Spotify is a digital music service that gives you access to millions of songs.
-
-%install
-mkdir -p %{buildroot}
-cp -a ${INSTALL_DIR}/* %{buildroot}/
-
-%files
-%{_bindir}/spotify
-%{_datadir}/spotify-client/
-%{_datadir}/applications/spotify.desktop
-%{_datadir}/icons/hicolor/*/apps/spotify.png
-%{_datadir}/appdata/spotify.xml
-%{_mandir}/man1/spotify.1*
-
-%changelog
-* $(date "+%a %b %d %Y") Automated Build <builder@localhost> - ${VERSION}-1
-- Automated build of Spotify client ${VERSION}
-EOF
+# Generate spec file
+/build/create-spec.sh "${VERSION}" "${INSTALL_DIR}" "${BUILD_DIR}/SPECS/spotify-client.spec"
 
 # Build the RPM
 echo -e "${YELLOW}Building RPM...${NC}"
