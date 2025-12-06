@@ -14,7 +14,7 @@ cat > "$SPEC_FILE" << EOF
 %global debug_package %{nil}
 %global __strip /bin/true
 
-Name:           spotify-client
+Name:           spotify
 Version:        ${VERSION}
 Release:        1%{?dist}
 Summary:        Spotify desktop client
@@ -32,11 +32,11 @@ mkdir -p %{buildroot}
 cp -a ${INSTALL_DIR}/* %{buildroot}/
 
 %post
-chmod -R a+wr %{_datadir}/spotify-client/ || true
+chmod -R a+wr %{_datadir}/spotify/ || true
 
 %files
 %{_bindir}/spotify
-%{_datadir}/spotify-client/
+%{_datadir}/spotify/
 %{_datadir}/applications/spotify.desktop
 %{_datadir}/icons/hicolor/*/apps/spotify.png
 %{_datadir}/appdata/spotify.xml

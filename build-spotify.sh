@@ -43,16 +43,16 @@ ar x "/build/${LATEST_DEB}" 2>/dev/null
 tar xf data.tar.* 2>/dev/null
 
 # Create installation directory
-INSTALL_DIR="${BUILD_DIR}/BUILD/spotify-client-${VERSION}/BUILDROOT"
+INSTALL_DIR="${BUILD_DIR}/BUILD/spotify-${VERSION}/BUILDROOT"
 mkdir -p "${INSTALL_DIR}/usr/bin"
-mkdir -p "${INSTALL_DIR}/usr/share/spotify-client"
+mkdir -p "${INSTALL_DIR}/usr/share/spotify"
 mkdir -p "${INSTALL_DIR}/usr/share/applications"
 mkdir -p "${INSTALL_DIR}/usr/share/icons/hicolor"
 mkdir -p "${INSTALL_DIR}/usr/share/appdata"
 mkdir -p "${INSTALL_DIR}/usr/share/man/man1"
 
 # Copy Spotify files
-cp -ar usr/share/spotify/* "${INSTALL_DIR}/usr/share/spotify-client/"
+cp -ar usr/share/spotify/* "${INSTALL_DIR}/usr/share/spotify/"
 
 # Create launcher script
 cat > "${INSTALL_DIR}/usr/bin/spotify" << 'LAUNCHER'
@@ -63,7 +63,7 @@ cat > "${INSTALL_DIR}/usr/bin/spotify" << 'LAUNCHER'
 export SPOTIFY_CLEAN_CACHE=1
 
 # Flags to improve compatibility
-exec /usr/share/spotify-client/spotify \
+exec /usr/share/spotify/spotify \
     --disable-gpu-sandbox \
     --disable-seccomp-filter-sandbox \
     --no-zygote \
@@ -130,17 +130,17 @@ https://www.spotify.com/
 MANPAGE
 
 # Adjust library permissions
-find "${INSTALL_DIR}/usr/share/spotify-client" -name '*.so*' -type f -exec chmod 755 {} \;
+find "${INSTALL_DIR}/usr/share/spotify" -name '*.so*' -type f -exec chmod 755 {} \;
 
 # Generate spec file
-/build/create-spec.sh "${VERSION}" "${INSTALL_DIR}" "${BUILD_DIR}/SPECS/spotify-client.spec"
+/build/create-spec.sh "${VERSION}" "${INSTALL_DIR}" "${BUILD_DIR}/SPECS/spotify.spec"
 
 # Build the RPM
 echo "Building RPM this may take a while..."
 
 rpmbuild -bb \
     --define "_topdir ${BUILD_DIR}" \
-    ${BUILD_DIR}/SPECS/spotify-client.spec 2>&1 | grep -E '(^Wrote:|^error:|^Error)' || true
+    ${BUILD_DIR}/SPECS/spotify.spec 2>&1 | grep -E '(^Wrote:|^error:|^Error)' || true
 
 # Copy resulting RPM to output directory
 mkdir -p /output

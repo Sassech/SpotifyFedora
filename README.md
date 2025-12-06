@@ -44,7 +44,7 @@ El script hará lo siguiente:
 ### Instalar el RPM generado
 
 ```bash
-sudo dnf install ./output/spotify-client-*.rpm
+sudo dnf install ./output/spotify-*.rpm
 ```
 
 ## 📁 Estructura del proyecto
@@ -55,7 +55,7 @@ SpotifyFedora/
 ├── Dockerfile            # Definición de la imagen Podman
 ├── build-spotify.sh      # Script interno de construcción (dentro del contenedor)
 ├── output/               # Directorio de salida (se crea automáticamente)
-│   └── spotify-client-*.rpm
+│   └── spotify-*.rpm
 └── README.md            # Este archivo
 ```
 
