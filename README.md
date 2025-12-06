@@ -1,105 +1,59 @@
-# Spotify RPM Builder para Fedora
+# Spotify RPM Builder for Fedora
 
-Constructor automatizado de paquetes RPM de Spotify para Fedora usando Podman.
+A cleaner alternative to **lpf-spotify-client** that builds Spotify RPM packages using Podman containers instead of polluting your system with build dependencies.
 
-## 🎯 Características
+## Requirements
 
-- ✅ **Sin ensuciar tu sistema**: Todo se ejecuta dentro de un contenedor Podman
-- ✅ **Sin dependencia de lpf-spotify-client**: Construcción independiente
-- ✅ **Automático**: Descarga la última versión de Spotify y la convierte a RPM
-- ✅ **Limpieza automática**: Elimina archivos temporales y la imagen Podman al finalizar
-- ✅ **Rootless**: Podman puede ejecutarse sin privilegios de root
+- Podman (preinstalled on Fedora)
+- Fedora Linux (tested on Fedora 43)
 
-## 📋 Requisitos
-
-- Podman instalado
-- Fedora Linux (probado en Fedora 43)
-
-### Instalar Podman (si no lo tienes)
-
-```bash
-sudo dnf install podman
-```
-
-**Nota**: Podman viene preinstalado en Fedora y no requiere daemon ni privilegios especiales.
-
-## 🚀 Uso
-
-### Construcción simple
-
-Simplemente ejecuta el script:
+## Usage
 
 ```bash
 ./build.sh
-```
-
-El script hará lo siguiente:
-
-1. Construir la imagen Podman con todas las dependencias
-2. Descargar la última versión del .deb de Spotify
-3. Convertir el .deb a RPM
-4. Guardar el RPM en `./output/`
-5. Limpiar automáticamente la imagen Podman y archivos temporales
-
-### Instalar el RPM generado
-
-```bash
 sudo dnf install ./output/spotify-*.rpm
 ```
 
-## 📁 Estructura del proyecto
+## How It Works
 
-```
-SpotifyFedora/
-├── build.sh              # Script principal (ejecuta todo el proceso)
-├── Dockerfile            # Definición de la imagen Podman
-├── build-spotify.sh      # Script interno de construcción (dentro del contenedor)
-├── output/               # Directorio de salida (se crea automáticamente)
-│   └── spotify-*.rpm
-└── README.md            # Este archivo
-```
+1. Downloads official Spotify .deb from repository
+2. Extracts and reorganizes files for Fedora standards
+3. Creates custom launcher with GPU sandbox fixes
+4. Builds RPM with desktop integration (icons, .desktop file, man page)
+5. Cleans up container and temporary files
 
-**Nota**: El proyecto `spotify-make` se descarga automáticamente dentro del contenedor desde GitHub.
+## Included Fixes (Under Testing)
 
-## 🔧 Cómo funciona
+Custom launcher that attempts to prevent common Fedora issues:
 
-El proceso sigue los mismos pasos que `lpf-spotify-client` pero de forma aislada:
+- GPU sandbox disabled (may help with black screen issues)
+- Seccomp filter sandbox disabled
+- Clean cache flag for better compatibility
 
-1. **Descarga**: Obtiene el .deb oficial de Spotify desde el repositorio de Spotify
-2. **Extracción**: Desempaqueta el .deb usando `ar` y `tar`
-3. **Conversión**: Reorganiza los archivos según el estándar de Fedora
-4. **Empaquetado**: Crea un RPM usando `rpmbuild`
-5. **Limpieza**: Elimina la imagen Podman y archivos temporales
+**Note**: These fixes are still being tested. Black screen issues at startup still occur.
 
-Todo sucede dentro de un contenedor Podman basado en Fedora 43, por lo que tu sistema permanece limpio.
+## Troubleshooting
 
-## 🐛 Solución de problemas
+If build fails, check `build.log` for errors. Common issues:
 
-### Podman no está instalado
+- Network connection required
+- Insufficient disk space
+- Podman not working: run `podman info`
 
-```bash
-sudo dnf install podman
-```
+## Credits
 
-### Problemas con permisos
+This project combines and adapts code from multiple sources:
 
-Podman ejecuta contenedores sin privilegios de root por defecto, no deberías tener problemas de permisos.
+- **Build process inspired by**: [lpf-spotify-client](https://github.com/leamas/lpf) by leamas
+  - RPM packaging methodology
+  - .deb extraction and conversion approach
+- **Launcher fixes**: Community-sourced solutions for Fedora compatibility issues
 
-### El RPM no se genera
+  - GPU sandbox flags from various Fedora/Spotify bug reports
+  - Wayland/X11 compatibility workarounds
 
-Verifica los logs del contenedor. El script mostrará cualquier error durante la construcción.
+- **Containerization approach**: Original implementation using Podman for isolated builds
 
-## 📝 Notas
+## License
 
-- El RPM generado es para **x86_64** únicamente
-- Se descarga siempre la **última versión** disponible de Spotify
-- El proceso puede tardar varios minutos dependiendo de tu conexión a Internet
-- Los archivos temporales (`.deb`, cache de Docker) se limpian automáticamente
-
-## 📜 Licencia
-
-Este proyecto es un script de empaquetado. Spotify es software propietario de Spotify AB.
-
-## 🙏 Créditos
-
-Basado en el proceso de construcción de `lpf-spotify-client` del proyecto [lpf](https://github.com/leamas/lpf).
+This project is a packaging script. Spotify is proprietary software owned by Spotify AB.
