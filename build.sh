@@ -20,15 +20,25 @@ CONTAINER_NAME="spotify-build-$$"
 
 # Function to cleanup
 cleanup() {
-    podman ps -a | grep "$IMAGE_NAME" | awk '{print $1}' | xargs podman rm -f 2>/dev/null || true
-    podman rmi -f "$IMAGE_NAME" 2>/dev/null || true
+    echo -e "${BLUE}Cleaning up...${NC}"
+    local containers=$(podman ps -a | grep "$IMAGE_NAME" | awk '{print $1}')
+    if [ -n "$containers" ]; then
+        echo "$containers" | xargs podman rm -f >> build.log 2>&1 || true
+    fi
+    podman rmi -f "$IMAGE_NAME" >> build.log 2>&1 || true
+    echo -e "${GREEN}✓ Done${NC}"
 }
 
 # Function to build Podman image
 build_image() {
     echo -e "${BLUE}Building image...${NC}"
     cd "$SCRIPT_DIR"
-    podman build -t "$IMAGE_NAME" .
+    if podman build -t "$IMAGE_NAME" . > build.log 2>&1; then
+        echo -e "${GREEN}✓ Image built${NC}"
+    else
+        echo -e "${RED}✗ Failed. Check build.log${NC}"
+        exit 1
+    fi
 }
 
 # Function to build the RPM
@@ -37,18 +47,22 @@ build_rpm() {
     
     mkdir -p "$OUTPUT_DIR"
     
-    podman run --rm \
+    if podman run --rm \
         --name "$CONTAINER_NAME" \
         -v "$OUTPUT_DIR:/output" \
-        "$IMAGE_NAME"
-    
-    # Verify RPM was created
-    if ls "$OUTPUT_DIR"/*.rpm 1> /dev/null 2>&1; then
-        echo -e "${GREEN}Build successful!${NC}"
-        ls -lh "$OUTPUT_DIR"/*.rpm
+        "$IMAGE_NAME" >> build.log 2>&1; then
+        
+        # Verify RPM was created
+        if ls "$OUTPUT_DIR"/*.rpm 1> /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Build successful${NC}"
+            ls -lh "$OUTPUT_DIR"/*.rpm
+        else
+            echo -e "${RED}✗ RPM not generated${NC}"
+            return 1
+        fi
     else
-        echo -e "${RED}Error: RPM was not generated${NC}"
-        return 1
+        echo -e "${RED}✗ Failed. Check build.log${NC}"
+        exit 1
     fi
 }
 

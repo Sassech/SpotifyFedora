@@ -1,13 +1,7 @@
 #!/bin/bash
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}=== Spotify RPM Builder ===${NC}"
+echo "=== Spotify RPM Builder ==="
 
 # Spotify repository URL
 SPOTIFY_REPO="http://repository.spotify.com/pool/non-free/s/spotify-client/"
@@ -16,16 +10,16 @@ SPOTIFY_REPO="http://repository.spotify.com/pool/non-free/s/spotify-client/"
 LATEST_DEB=$(curl -sL $SPOTIFY_REPO | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
 
 if [ -z "$LATEST_DEB" ]; then
-    echo -e "${RED}Error: Could not determine latest version${NC}"
+    echo "Error: Could not determine latest version"
     exit 1
 fi
 
-echo -e "${GREEN}Version: ${LATEST_DEB}${NC}"
+echo "Version: ${LATEST_DEB}"
 
 # Download the .deb if it doesn't exist
 if [ ! -f "/build/${LATEST_DEB}" ]; then
-    echo -e "${YELLOW}Downloading...${NC}"
-    wget -q --show-progress "${SPOTIFY_REPO}${LATEST_DEB}" -O "/build/${LATEST_DEB}"
+    echo "Downloading..."
+    wget -q "${SPOTIFY_REPO}${LATEST_DEB}" -O "/build/${LATEST_DEB}"
 fi
 
 # Extract version from filename
@@ -44,9 +38,9 @@ mkdir -p "${WORK_DIR}"
 cd "${WORK_DIR}"
 
 # Extract .deb manually
-echo -e "${YELLOW}Extracting...${NC}"
-ar x "/build/${LATEST_DEB}"
-tar xf data.tar.*
+echo "Extracting..."
+ar x "/build/${LATEST_DEB}" 2>/dev/null
+tar xf data.tar.* 2>/dev/null
 
 # Create installation directory
 INSTALL_DIR="${BUILD_DIR}/BUILD/spotify-client-${VERSION}/BUILDROOT"
@@ -142,15 +136,15 @@ find "${INSTALL_DIR}/usr/share/spotify-client" -name '*.so*' -type f -exec chmod
 /build/create-spec.sh "${VERSION}" "${INSTALL_DIR}" "${BUILD_DIR}/SPECS/spotify-client.spec"
 
 # Build the RPM
-echo -e "${YELLOW}Building RPM...${NC}"
+echo "Building RPM this may take a while..."
 
 rpmbuild -bb \
     --define "_topdir ${BUILD_DIR}" \
-    ${BUILD_DIR}/SPECS/spotify-client.spec
+    ${BUILD_DIR}/SPECS/spotify-client.spec 2>&1 | grep -E '(^Wrote:|^error:|^Error)' || true
 
 # Copy resulting RPM to output directory
 mkdir -p /output
 cp ${BUILD_DIR}/RPMS/x86_64/*.rpm /output/
 
-echo -e "${GREEN}Build completed${NC}"
+echo "Build completed"
 ls -lh /output/*.rpm
