@@ -31,6 +31,9 @@ Spotify is a digital music service that gives you access to millions of songs.
 mkdir -p %{buildroot}
 cp -a ${INSTALL_DIR}/* %{buildroot}/
 
+%post
+chmod -R a+wr %{_datadir}/spotify-client/ || true
+
 %files
 %{_bindir}/spotify
 %{_datadir}/spotify-client/
