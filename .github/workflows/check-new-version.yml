@@ -2,8 +2,8 @@ name: Check for New Spotify Version
 
 on:
   schedule:
-    # Check Monthly at 12:00 UTC
-    - cron: "0 12 1 * *"
+    # Check every two months at 12:00 UTC
+    - cron: "0 12 1 */2 *"
   workflow_dispatch:
 
 permissions:

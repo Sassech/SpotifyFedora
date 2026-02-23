@@ -2,8 +2,8 @@ name: Build and Release Spotify RPM
 
 on:
   schedule:
-    # Run the first day of month at 00:00 UTC
-    - cron: "0 0 1 * *"
+    # Run the first day every two months at 00:00 UTC
+    - cron: "0 0 1 */2 *"
   workflow_dispatch:
     # Allow manual trigger
   push:
