@@ -13,32 +13,43 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Podman
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
+        uses: actions/checkout@v6
 
       - name: Build Spotify RPM
         run: |
           chmod +x build.sh
-          ./build.sh
+          ./build.sh --ci
 
       - name: Get Spotify version
         id: version
         run: |
-          RPM_FILE=$(ls output/spotify-*.rpm | head -n 1)
-          VERSION=$(echo $RPM_FILE | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+          RPM_FILE=$(find output -maxdepth 1 -name 'spotify-*.rpm' -type f | head -n 1)
+          if [ -z "$RPM_FILE" ]; then
+            echo "::error::No RPM file found in output/"
+            exit 1
+          fi
+          VERSION=$(echo "$RPM_FILE" | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not extract version from RPM filename"
+            exit 1
+          fi
+
+          SHA256=$(sha256sum "$RPM_FILE" | awk '{print $1}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
           echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: Check if release exists
         id: check_release
@@ -53,7 +64,7 @@ jobs:
 
       - name: Create Release
         if: steps.check_release.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Spotify ${{ steps.version.outputs.version }}
@@ -62,10 +73,20 @@ jobs:
 
             Automated build of Spotify version `${{ steps.version.outputs.version }}`
 
+            ### Install
+            ```bash
+            sudo dnf install ./spotify-*.rpm
+            ```
+
             ### Included Fixes (still being tested)
             - GPU sandbox disabled (may help with black screen issues)
             - Seccomp filter sandbox disabled
             - Clean cache flag for better compatibility
+
+            ### Checksum
+            ```
+            SHA256: ${{ steps.version.outputs.sha256 }}
+            ```
           files: |
             ${{ steps.version.outputs.rpm_file }}
           draft: false
@@ -74,8 +95,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: spotify-rpm-${{ steps.version.outputs.version }}
           path: output/*.rpm
           retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Generate Spotify RPM spec file
+set -euo pipefail
 
 VERSION=$1
 INSTALL_DIR=$2
@@ -46,3 +47,5 @@ chmod -R a+wr %{_datadir}/spotify/ || true
 * $(date "+%a %b %d %Y") Automated Build <builder@localhost> - ${VERSION}-1
 - Automated build of Spotify client ${VERSION}
 EOF
+
+echo "Spec file generated: $SPEC_FILE"

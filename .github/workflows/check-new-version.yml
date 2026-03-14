@@ -16,14 +16,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get latest Spotify version
         id: spotify
         run: |
           SPOTIFY_REPO="http://repository.spotify.com/pool/non-free/s/spotify-client/"
-          LATEST_DEB=$(curl -sL $SPOTIFY_REPO | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
-          VERSION=$(echo $LATEST_DEB | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+          LATEST_DEB=$(curl -sL --connect-timeout 15 --max-time 30 "$SPOTIFY_REPO" \
+            | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
+
+          if [ -z "$LATEST_DEB" ]; then
+            echo "Error: Could not fetch version from Spotify repository"
+            exit 1
+          fi
+
+          VERSION=$(echo "$LATEST_DEB" | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
+
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not parse version from: $LATEST_DEB"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Latest Spotify version: $VERSION"
 
