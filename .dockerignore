@@ -1,0 +1,11 @@
+.git
+.github
+output
+*.rpm
+*.log
+*.md
+.env
+.env.*
+*.tmp
+build.log
+output

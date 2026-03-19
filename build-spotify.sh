@@ -154,6 +154,7 @@ rpmbuild -bb \
 
 # Copy resulting RPM to output directory
 mkdir -p /output
+chmod 777 /output 2>/dev/null || true
 
 if ls "${BUILD_DIR}/RPMS/x86_64/"*.rpm 1> /dev/null 2>&1; then
     cp "${BUILD_DIR}/RPMS/x86_64/"*.rpm /output/
@@ -164,3 +165,5 @@ else
     echo "rpmbuild may have failed silently. Check the output above."
     exit 1
 fi
+
+rm -rf "$BUILD_DIR" "$WORK_DIR" "/build/${LATEST_DEB}" 2>/dev/null || true

@@ -1,70 +1,44 @@
 # Spotify RPM Builder for Fedora
 
-A cleaner alternative to **lpf-spotify-client** that builds Spotify RPM packages using isolated containers instead of polluting your system with build dependencies.
+Build Spotify RPM packages for Fedora using isolated containers.
 
-## Requirements
+## Download Prebuilt RPM
 
-- **Podman** or **Docker**
-- Fedora Linux (tested on Fedora 43)
+Get the latest release from [Releases](https://github.com/sassech/SpotifyFedora/releases).
 
-## Usage
+## Build Locally
 
-### Download from Releases (Recommended)
+### Requirements
+- Docker or Podman (`sudo dnf install podman`)
+- ~500MB disk space
 
-Pre-built RPMs are automatically generated and available in [Releases](../../releases):
-
-```bash
-sudo dnf install ./spotify-*.rpm
-```
-
-### Build Locally
+### Quick Start
 
 ```bash
-chmod +x build.sh
 ./build.sh
 sudo dnf install ./output/spotify-*.rpm
 ```
 
-The script auto-detects whether to use Podman or Docker.
+## Included Fixes
 
-## How It Works
-
-1. Downloads official Spotify `.deb` from repository
-2. Extracts and reorganizes files for Fedora standards
-3. Creates custom launcher with GPU sandbox fixes
-4. Builds RPM with desktop integration (icons, `.desktop` file, man page)
-5. Cleans up container and temporary files
-
-## Included Fixes (Under Testing)
-
-Custom launcher that attempts to prevent common Fedora issues:
-
-- GPU sandbox disabled (may help with black screen issues)
+Custom launcher with Fedora compatibility flags:
+- GPU sandbox disabled
 - Seccomp filter sandbox disabled
-- Clean cache flag for better compatibility
+- Clean cache flag
 
-**Note**: These fixes are still being tested. Black screen issues at startup still occur.
+## Uninstall
 
-## Troubleshooting
+```bash
+sudo dnf remove spotify
+```
 
-If build fails, check `build.log` for errors. Common issues:
-
-- Network connection required
-- Insufficient disk space
-- Container runtime not working: run `podman info` or `docker info`
+## Build Info
+- **Build Time**: ~2-5 min
+- **RPM Size**: ~200MB
+- **Arch**: x86_64
 
 ## Credits
+- Based on [lpf-spotify-client](https://github.com/leamas/lpf) by leamas
+- Containerization approach using Podman/Docker
 
-This project combines and adapts code from multiple sources:
-
-- **Build process inspired by**: [lpf-spotify-client](https://github.com/leamas/lpf) by leamas
-  - RPM packaging methodology
-  - `.deb` extraction and conversion approach
-- **Launcher fixes**: Community-sourced solutions for Fedora compatibility issues
-  - GPU sandbox flags from various Fedora/Spotify bug reports
-  - Wayland/X11 compatibility workarounds
-- **Containerization approach**: Original implementation using Podman/Docker for isolated builds
-
-## License
-
-This project is a packaging script. Spotify is proprietary software owned by Spotify AB.
+Spotify is proprietary software owned by Spotify AB.

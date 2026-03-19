@@ -2,34 +2,50 @@ name: Build and Release Spotify RPM
 
 on:
   schedule:
-    # Run the first day every two months at 00:00 UTC
     - cron: "0 0 1 */2 *"
   workflow_dispatch:
-    # Allow manual trigger
   push:
     tags:
       - "v*"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
+  packages: write
 
-concurrency:
-  group: build-release-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  IMAGE_NAME: spotify-builder:fedora
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Build Spotify RPM
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run build
         run: |
-          chmod +x build.sh
-          ./build.sh --ci
+          mkdir -p output
+          docker run --rm \
+            -v ${{ github.workspace }}/output:/output \
+            ${{ env.IMAGE_NAME }}
 
       - name: Get Spotify version
         id: version
@@ -41,18 +57,16 @@ jobs:
           fi
           VERSION=$(echo "$RPM_FILE" | grep -oP '\d+\.\d+\.\d+\.\d+\.g[a-f0-9]+')
           if [ -z "$VERSION" ]; then
-            echo "::error::Could not extract version from RPM filename"
+            echo "::error::Could not extract version"
             exit 1
           fi
-
           SHA256=$(sha256sum "$RPM_FILE" | awk '{print $1}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
-          echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
-      - name: Check if release exists
-        id: check_release
+      - name: Check release
+        id: check
         run: |
           if gh release view "v${{ steps.version.outputs.version }}" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -63,48 +77,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Create Release
-        if: steps.check_release.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v2.5.0
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Spotify ${{ steps.version.outputs.version }}
           body: |
             ## Spotify RPM for Fedora
 
-            Automated build of Spotify version `${{ steps.version.outputs.version }}`
+            Version: `${{ steps.version.outputs.version }}`
+            SHA256: `${{ steps.version.outputs.sha256 }}`
 
-            ### Install
             ```bash
             sudo dnf install ./spotify-*.rpm
             ```
-
-            ### Included Fixes (still being tested)
-            - GPU sandbox disabled (may help with black screen issues)
-            - Seccomp filter sandbox disabled
-            - Clean cache flag for better compatibility
-
-            ### Checksum
-            ```
-            SHA256: ${{ steps.version.outputs.sha256 }}
-            ```
-          files: |
-            ${{ steps.version.outputs.rpm_file }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ steps.version.outputs.rpm_file }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: spotify-rpm-${{ steps.version.outputs.version }}
           path: output/*.rpm
           retention-days: 30
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: build-log
-          path: build.log
-          retention-days: 7
