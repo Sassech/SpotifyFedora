@@ -6,15 +6,20 @@ echo "=== Spotify RPM Builder ==="
 # Spotify repository URL
 SPOTIFY_REPO="http://repository.spotify.com/pool/non-free/s/spotify-client/"
 
-# Get latest available version
-echo "Fetching latest version from Spotify repository..."
-LATEST_DEB=$(curl -sL --connect-timeout 15 --max-time 30 "$SPOTIFY_REPO" \
-    | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
+# Allow pinning a specific version via env var (e.g. SPOTIFY_VERSION=1.2.52.442.gf9f0e932)
+if [ -n "${SPOTIFY_VERSION:-}" ]; then
+    echo "Using pinned version: ${SPOTIFY_VERSION}"
+    LATEST_DEB="spotify-client_${SPOTIFY_VERSION}_amd64.deb"
+else
+    echo "Fetching latest version from Spotify repository..."
+    LATEST_DEB=$(curl -sL --connect-timeout 15 --max-time 30 "$SPOTIFY_REPO" \
+        | grep -oP 'href="\K[^"]*\.deb' | grep amd64 | sort -V | tail -n 1)
 
-if [ -z "$LATEST_DEB" ]; then
-    echo "Error: Could not determine latest version from $SPOTIFY_REPO"
-    echo "Check your network connection or if the repository URL has changed."
-    exit 1
+    if [ -z "$LATEST_DEB" ]; then
+        echo "Error: Could not determine latest version from $SPOTIFY_REPO"
+        echo "Check your network connection or if the repository URL has changed."
+        exit 1
+    fi
 fi
 
 echo "Package: ${LATEST_DEB}"
@@ -35,8 +40,8 @@ fi
 
 echo "Version: ${VERSION}"
 
-# Create directory structure for rpmbuild
-BUILD_DIR="/root/rpmbuild"
+# Create directory structure for rpmbuild (under builder's home, set up by rpmdev-setuptree)
+BUILD_DIR="${HOME}/rpmbuild"
 mkdir -p "${BUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 # Copy .deb to SOURCES
@@ -68,9 +73,6 @@ cp -ar usr/share/spotify/* "${INSTALL_DIR}/usr/share/spotify/"
 cat > "${INSTALL_DIR}/usr/bin/spotify" << 'LAUNCHER'
 #!/usr/bin/bash
 # Spotify launcher with Fedora fixes
-
-# Disable hardware acceleration that causes black screen
-export SPOTIFY_CLEAN_CACHE=1
 
 # Flags to improve compatibility
 exec /usr/share/spotify/spotify \
@@ -122,8 +124,8 @@ cat > "${INSTALL_DIR}/usr/share/appdata/spotify.xml" << 'APPDATA'
 APPDATA
 
 # Create man page
-cat > "${INSTALL_DIR}/usr/share/man/man1/spotify.1" << 'MANPAGE'
-.TH SPOTIFY 1 "December 2025" "Spotify Client" "User Commands"
+cat > "${INSTALL_DIR}/usr/share/man/man1/spotify.1" << MANPAGE
+.TH SPOTIFY 1 "$(date '+%B %Y')" "Spotify Client" "User Commands"
 .SH NAME
 spotify \- Spotify streaming music client
 .SH SYNOPSIS
@@ -154,7 +156,6 @@ rpmbuild -bb \
 
 # Copy resulting RPM to output directory
 mkdir -p /output
-chmod 777 /output 2>/dev/null || true
 
 if ls "${BUILD_DIR}/RPMS/x86_64/"*.rpm 1> /dev/null 2>&1; then
     cp "${BUILD_DIR}/RPMS/x86_64/"*.rpm /output/
