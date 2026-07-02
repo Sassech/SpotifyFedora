@@ -15,11 +15,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 LOG_FILE="${SCRIPT_DIR}/build.log"
 
-# CI mode: stream logs to stdout (auto-detect GitHub Actions or pass --ci)
+# Options (parse args)
 CI_MODE="${CI:-false}"
-if [[ "${1:-}" == "--ci" ]]; then
-    CI_MODE="true"
-fi
+CLEAN_IMAGE=false
+FEDORA_VERSION="${FEDORA_VERSION:-43}"
+SPOTIFY_VERSION="${SPOTIFY_VERSION:-}"  # empty = latest
+
+for arg in "$@"; do
+    case "$arg" in
+        --ci)    CI_MODE="true" ;;
+        --clean) CLEAN_IMAGE=true ;;
+        --help)
+            echo "Usage: $0 [--ci] [--clean]"
+            echo ""
+            echo "  --ci      Stream build logs to stdout (auto-detected in GitHub Actions)"
+            echo "  --clean   Remove the builder image after a successful build"
+            echo ""
+            echo "Environment variables:"
+            echo "  FEDORA_VERSION   Fedora base image version (default: 43)"
+            echo "  SPOTIFY_VERSION  Pin a specific Spotify version (default: latest)"
+            exit 0
+            ;;
+    esac
+done
 
 # Logging helper: tee to both log file and stdout in CI, only file otherwise
 log_cmd() {
@@ -63,23 +81,34 @@ show_log_tail() {
     echo -e "${YELLOW}--- End of log ---${NC}"
 }
 
-# Function to cleanup
-cleanup() {
-    echo -e "${BLUE}Cleaning up...${NC}"
+# Function to cleanup containers (not the image — reuse it next time)
+cleanup_containers() {
     local containers
     containers=$($CONTAINER_RT ps -a --format '{{.ID}} {{.Image}}' 2>/dev/null | grep "$IMAGE_NAME" | awk '{print $1}') || true
     if [ -n "$containers" ]; then
         echo "$containers" | xargs $CONTAINER_RT rm -f >> "$LOG_FILE" 2>&1 || true
     fi
-    $CONTAINER_RT rmi -f "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || true
-    echo -e "${GREEN}✓ Done${NC}"
 }
 
-# Function to build container image
+# Function to remove the builder image (only when --clean is passed)
+cleanup_image() {
+    echo -e "${BLUE}Removing builder image...${NC}"
+    $CONTAINER_RT rmi -f "$IMAGE_NAME" >> "$LOG_FILE" 2>&1 || true
+    echo -e "${GREEN}✓ Image removed${NC}"
+}
+
+# Function to build container image (skip if already exists)
 build_image() {
-    echo -e "${BLUE}Building image...${NC}"
+    if $CONTAINER_RT image inspect "$IMAGE_NAME" &> /dev/null; then
+        echo -e "${GREEN}✓ Image already exists, skipping build (use --clean to force rebuild)${NC}"
+        return
+    fi
+
+    echo -e "${BLUE}Building image (Fedora ${FEDORA_VERSION})...${NC}"
     cd "$SCRIPT_DIR"
-    if log_cmd $CONTAINER_RT build -t "$IMAGE_NAME" .; then
+    if log_cmd $CONTAINER_RT build \
+        --build-arg "FEDORA_VERSION=${FEDORA_VERSION}" \
+        -t "$IMAGE_NAME" .; then
         echo -e "${GREEN}✓ Image built${NC}"
     else
         echo -e "${RED}✗ Image build failed${NC}"
@@ -94,10 +123,19 @@ build_rpm() {
 
     mkdir -p "$OUTPUT_DIR"
 
-    if log_cmd $CONTAINER_RT run --rm \
-        --name "$CONTAINER_NAME" \
-        -v "$OUTPUT_DIR:/output:z" \
-        "$IMAGE_NAME"; then
+    local -a run_args=(
+        --rm
+        --name "$CONTAINER_NAME"
+        -v "$OUTPUT_DIR:/output:z"
+    )
+
+    # Forward optional pinned version
+    if [ -n "$SPOTIFY_VERSION" ]; then
+        run_args+=(-e "SPOTIFY_VERSION=${SPOTIFY_VERSION}")
+        echo -e "${BLUE}Pinned Spotify version: ${SPOTIFY_VERSION}${NC}"
+    fi
+
+    if log_cmd $CONTAINER_RT run "${run_args[@]}" "$IMAGE_NAME"; then
 
         # Verify RPM was created
         if ls "$OUTPUT_DIR"/*.rpm 1> /dev/null 2>&1; then
@@ -128,13 +166,18 @@ echo -e "${NC}"
 # Clean previous log
 > "$LOG_FILE"
 
-# Build image
+# Build image (cached if it already exists)
 build_image
+
+# Clean up any leftover containers from previous runs
+cleanup_containers
 
 # Build the RPM
 build_rpm
 
-# Cleanup container image
-cleanup
+# Remove the image only if --clean was requested
+if [[ "$CLEAN_IMAGE" == "true" ]]; then
+    cleanup_image
+fi
 
 echo -e "${GREEN}Process completed!${NC}"
